@@ -13,6 +13,7 @@ SourceFiles
 #ifndef DIAGaussSeidelSmoother_H
 #define DIAGaussSeidelSmoother_H
 
+#include "doubleScalar.H"
 #include "lduMatrix.H"
 
 namespace Foam
@@ -29,6 +30,13 @@ class DIAGaussSeidelSmoother:
             label Nx_;
             label Ny_;
             label Nz_;
+            bool useDIA_;
+            scalar upperCoeffI_;
+            scalar upperCoeffJ_;
+            scalar upperCoeffK_;
+            scalar lowerCoeffI_;
+            scalar lowerCoeffJ_;
+            scalar lowerCoeffK_;
 
         public:
             TypeName("DIAGaussSeidel");
