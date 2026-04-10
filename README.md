@@ -32,7 +32,7 @@ instruction counts, and measurable wall-clock improvements on modern out-of-orde
 
 **Key characteristics of the target problem:**
 - Structured hex meshes (e.g. cavity, duct, channel flow)
-- Symmetric matrices with uniform coefficients per diagonal band
+- Symmetric matrices ~~with uniform coefficients per diagonal band~~ (now supports uniform or variable coefficients per diagonal band - should cover more use cases now)
 - Fixed diagonal offsets: `{±1, ±N, ±N²}` for a mesh of stride `N`
 
 ---
@@ -43,10 +43,10 @@ This plugin is intentionally scoped. It is **not** a general-purpose smoother.
 
 - ✅ Structured hexahedral meshes
 - ✅ Symmetric matrices
-- ✅ Uniform coefficients per diagonal band
+- ✅ ~~Uniform coefficients per diagonal band~~ Now supports both uniform and variable coefficients
 - ✅ OpenFOAM Foundation v13
 - ❌ Unstructured or polyhedral meshes (falls back gracefully — see below)
-- ❌ Non-uniform or anisotropic coefficient distributions
+- ❌ ~~Non-uniform or anisotropic coefficient distributions~~
 - ❌ ESI/OpenCFD (foam-extend) variants — untested
 
 The plugin includes a structured-mesh detection check at initialisation. If the mesh
