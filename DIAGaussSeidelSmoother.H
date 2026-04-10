@@ -15,6 +15,7 @@ SourceFiles
 
 #include "doubleScalar.H"
 #include "lduMatrix.H"
+#include "scalarField.H"
 
 namespace Foam
 {
@@ -37,7 +38,9 @@ class DIAGaussSeidelSmoother:
             scalar lowerCoeffI_;
             scalar lowerCoeffJ_;
             scalar lowerCoeffK_;
-
+            scalarField upperCoeffFieldI_;
+            scalarField upperCoeffFieldJ_;
+            scalarField upperCoeffFieldK_;
         public:
             TypeName("DIAGaussSeidel");
 

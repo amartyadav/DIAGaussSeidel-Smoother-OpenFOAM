@@ -48,12 +48,19 @@ Foam::DIAGaussSeidelSmoother::DIAGaussSeidelSmoother(
     upperCoeffK_(0.0),
     lowerCoeffI_(0.0),
     lowerCoeffJ_(0.0),
-    lowerCoeffK_(0.0)
+    lowerCoeffK_(0.0),
+    upperCoeffFieldI_(),
+    upperCoeffFieldJ_(),
+    upperCoeffFieldK_()
 {
     const label nCells = matrix_.diag().size();
 
     const labelUList upperAddr = matrix_.lduAddr().upperAddr();
     const labelUList lowerAddr = matrix_.lduAddr().lowerAddr();
+    label nFaces = upperAddr.size();
+    const scalarField& upper = matrix_.upper();
+
+
 
     // unique offsets
     std::set<label> offsets;
@@ -117,18 +124,16 @@ Foam::DIAGaussSeidelSmoother::DIAGaussSeidelSmoother(
     bool allUniform = false;
     if(structuredMesh_ && !matrix_.asymmetric())
     {
-        const scalarField& upper = matrix_.upper();
         bool firstI = true, firstJ = true, firstK = true;
 
         allUniform = true;
-        label nFaces = upperAddr.size();
 
         for(label f = 0; f < nFaces; f++)
         {
             const label offset = upperAddr[f] - lowerAddr[f];
             const scalar coeff = upper[f];
 
-            if(offset == 1)
+            if(offset == 1) // I
             {
                 if(firstI)
                 {
@@ -149,7 +154,7 @@ Foam::DIAGaussSeidelSmoother::DIAGaussSeidelSmoother(
                     }
                 }
             }
-            else if(offset == Nx_)
+            else if(offset == Nx_) // J
             {
                 if(firstJ)
                 {
@@ -170,7 +175,7 @@ Foam::DIAGaussSeidelSmoother::DIAGaussSeidelSmoother(
                     }
                 }
             }
-            else if(offset == Nx_*Ny_)
+            else if(offset == Nx_*Ny_) // K
             {
                 if(firstK)
                 {
@@ -201,16 +206,58 @@ Foam::DIAGaussSeidelSmoother::DIAGaussSeidelSmoother(
         }
     }
 
-    useDIA_ = structuredMesh_ && !matrix.asymmetric() && allUniform;
+    useDIA_ = structuredMesh_ && !matrix.asymmetric();
 
     if (useDIA_)
     {
-        Info<< "DIAGaussSeidel: fast path enabled, Nx=" << Nx_
-            << " Ny=" << Ny_ << " Nz=" << Nz_
-            << " upperCoeffs=(" << upperCoeffI_
-            << ", " << upperCoeffJ_
-            << ", " << upperCoeffK_ << ")"
-            << " (nCells=" << nCells << ")" << endl;
+        if (allUniform)
+        {
+            Info<< "DIAGaussSeidel: fast path enabled (uniform coefficients),  Nx=" << Nx_
+                << " Ny=" << Ny_ << " Nz=" << Nz_
+                << " upperCoeffs=(" << upperCoeffI_
+                << ", " << upperCoeffJ_
+                << ", " << upperCoeffK_ << ")"
+                << " (nCells=" << nCells << ")" << endl;
+        }
+        else
+        {
+            Info<< "DIAGaussSeidel: fast path enabled (variable coefficients),  Nx=" << Nx_
+                << " Ny=" << Ny_ << " Nz=" << Nz_
+                << " upperCoeffs=(" << upperCoeffI_
+                << ", " << upperCoeffJ_
+                << ", " << upperCoeffK_ << ")"
+                << " (nCells=" << nCells << ")" << endl;
+        }
+
+        // initialising coefficient field
+        upperCoeffFieldI_.setSize(nCells);
+        upperCoeffFieldJ_.setSize(nCells);
+        upperCoeffFieldK_.setSize(nCells);
+
+        upperCoeffFieldI_ = 0.0;
+        upperCoeffFieldJ_ = 0.0;
+        upperCoeffFieldK_ = 0.0;
+
+        for(label f = 0; f < nFaces; f++)
+        {
+            const label offset = upperAddr[f] - lowerAddr[f];
+            const label owner = lowerAddr[f];
+
+            if(offset == 1) // I
+            {
+                upperCoeffFieldI_[owner] = upper[f];
+            }
+            else if (offset == Nx_) // J
+            {
+                upperCoeffFieldJ_[owner] = upper[f];
+            }
+            else if(offset == Nx_*Ny_) // K
+            {
+                upperCoeffFieldK_[owner] = upper[f];
+            }
+            else{}
+        }
+
     }
     else if (!structuredMesh_)
     {
@@ -221,25 +268,33 @@ Foam::DIAGaussSeidelSmoother::DIAGaussSeidelSmoother(
     {
         Info<< "DIAGaussSeidel: asymmetric matrix, falling back" << endl;
     }
-    else
+    // else
+    // {
+    //     Info<< "DIAGaussSeidel: non-uniform coefficients, falling back" << endl;
+    // }
+
+    if (useDIA_ && nCells == 125000)  // only log on finest level of your test case
     {
-        Info<< "DIAGaussSeidel: non-uniform coefficients, falling back" << endl;
+        Info<< "DEBUG: first 5 entries of upperCoeffFieldI_: ";
+        for (label i = 0; i < 5; i++) Info<< upperCoeffFieldI_[i] << " ";
+        Info<< endl;
+        // same for J and K
+        Info<< "DEBUG: first 5 entries of upperCoeffFieldJ_: ";
+        for (label i = 0; i < 5; i++) Info<< upperCoeffFieldJ_[i] << " ";
+        Info<< endl;
+        Info<< "DEBUG: first 5 entries of upperCoeffFieldK_: ";
+        for (label i = 0; i < 5; i++) Info<< upperCoeffFieldK_[i] << " ";
+        Info<< endl;
+
+        Info<< "DEBUG: boundary slots (should be 0): "
+            << "upperCoeffFieldI_[" << (Nx_-1) << "]=" << upperCoeffFieldI_[Nx_-1] << " "
+            << "upperCoeffFieldJ_[" << (Nx_*(Ny_-1)) << "]=" << upperCoeffFieldJ_[Nx_*(Ny_-1)] << " "
+            << "upperCoeffFieldK_[" << (nCells-1) << "]=" << upperCoeffFieldK_[nCells-1]
+            << endl;
     }
 }
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-// void Foam::DIAGaussSeidelSmoother::smooth(
-//     const word &fieldName_,
-//     scalarField &psi,
-//     const lduMatrix &matrix_,
-//     const scalarField &source,
-//     const FieldField<Field, scalar> &interfaceBouCoeffs_,
-//     const lduInterfaceFieldPtrsList &interfaces_,
-//     const direction cmpt,
-//     const label nSweeps)
-// {
-// }
 
 // Define the virtual smooth method (the 4-arg const one). Its body should just call Foam::GaussSeidelSmoother::smooth(...) — the stock one — passing fieldName_, psi, matrix_, source, interfaceBouCoeffs_, interfaces_, cmpt, nSweeps. All the underscore-suffixed members are inherited from the protected base class.
 void Foam::DIAGaussSeidelSmoother::smooth(
@@ -274,12 +329,20 @@ void Foam::DIAGaussSeidelSmoother::smooth(
         label Ny = Ny_;
         label Nz = Nz_;
 
-        scalar upperI = upperCoeffI_;
-        scalar upperJ = upperCoeffJ_;
-        scalar upperK = upperCoeffK_;
-        scalar lowerI = lowerCoeffI_;
-        scalar lowerJ = lowerCoeffJ_;
-        scalar lowerK = lowerCoeffK_;
+        const scalar* __restrict__ upperIPtr = upperCoeffFieldI_.begin();
+        const scalar* __restrict__ upperJPtr = upperCoeffFieldJ_.begin();
+        const scalar* __restrict__ upperKPtr = upperCoeffFieldK_.begin();
+
+        const scalar* __restrict__ lowerIPtr = upperIPtr;
+        const scalar* __restrict__ lowerJPtr = upperJPtr;
+        const scalar* __restrict__ lowerKPtr = upperKPtr;
+
+        // scalar upperI = upperCoeffI_;
+        // scalar upperJ = upperCoeffJ_;
+        // scalar upperK = upperCoeffK_;
+        // scalar lowerI = lowerCoeffI_;
+        // scalar lowerJ = lowerCoeffJ_;
+        // scalar lowerK = lowerCoeffK_;
 
         // Compute the two strides we'll use:
         //   jStride = Nx_       (offset for idx + Nx)
@@ -358,13 +421,13 @@ void Foam::DIAGaussSeidelSmoother::smooth(
                 //   if (i < Ny_ - 1):  psii -= upperJ * psiPtr[idx + jStride]
                 //   if (k < Nz_ - 1):  psii -= upperK * psiPtr[idx + kStride]
                 if (j < Nx - 1) {
-                    psii -= upperI * psiPtr[idx + 1];
+                    psii -= upperIPtr[idx] * psiPtr[idx + 1];
                 }
                 if (i < Ny - 1) {
-                    psii -= upperJ * psiPtr[idx + jStride];
+                    psii -= upperJPtr[idx] * psiPtr[idx + jStride];
                 }
                 if (k < Nz - 1) {
-                    psii -= upperK * psiPtr[idx + kStride];
+                    psii -= upperKPtr[idx] * psiPtr[idx + kStride];
                 }
 
                 // Divide by diagonal
@@ -376,13 +439,13 @@ void Foam::DIAGaussSeidelSmoother::smooth(
                 //   if (i < Ny_ - 1):  bPrimePtr[idx + jStride] -= lowerJ * psii
                 //   if (k < Nz_ - 1):  bPrimePtr[idx + kStride] -= lowerK * psii
                 if (j < Nx - 1) {
-                    bPrimePtr[idx + 1] -= lowerI * psii;
+                    bPrimePtr[idx + 1] -= lowerIPtr[idx] * psii;
                 }
                 if (i < Ny - 1) {
-                    bPrimePtr[idx + jStride] -= lowerJ * psii;
+                    bPrimePtr[idx + jStride] -= lowerJPtr[idx] * psii;
                 }
                 if (k < Nz - 1) {
-                    bPrimePtr[idx + kStride] -= lowerK * psii;
+                    bPrimePtr[idx + kStride] -= lowerKPtr[idx] * psii;
                 }
 
                 // Commit
