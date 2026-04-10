@@ -126,7 +126,7 @@ included `CITATION.cff`, or you can cite manually:
 
 ```
 Amartya Yadav. DIAGaussSeidel: A DIA-format Gauss-Seidel Smoother Plugin
-for OpenFOAM. 2026. https://github.com/amartyadav/DIAGaussSeidel
+for OpenFOAM. 2026. https://github.com/amartyadav/DIAGaussSeidel-Smoother-OpenFOAM
 ```
 
 BibTeX:
@@ -135,7 +135,7 @@ BibTeX:
   author  = {Yadav, Amartya},
   title   = {{DIAGaussSeidel}: A {DIA}-format {Gauss-Seidel} Smoother Plugin for {OpenFOAM}},
   year    = {2026},
-  url     = {https://github.com/amartyadav/DIAGaussSeidel},
+  url     = {https://github.com/amartyadav/DIAGaussSeidel-Smoother-OpenFOAM},
   license = {MIT}
 }
 ```
@@ -155,7 +155,7 @@ substantial portions of the software. See [LICENSE](LICENSE) for full terms.
 ## Author
 
 **Amartya Yadav**  
-HPC Software Engineer, Calligo Technologies
+HPC Software Engineer, Calligo Technologies <br/>
 MSc High Performance Computing, EPCC, University of Edinburgh  
-[github.com/\amartyadav](https://github.com/amartyadav)
+[github.com/\amartyadav](https://github.com/amartyadav) <br/>
 [amartyadav.com/](https://amartyadav.com)
