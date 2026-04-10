@@ -17,7 +17,7 @@ authors:
 version: "1.0.0"
 date-released: "2026"
 license: MIT
-repository-code: "https://github.com/amartyadav/DIAGaussSeidel"
+repository-code: "https://github.com/amartyadav/DIAGaussSeidel-Smoother-OpenFOAM"
 keywords:
   - OpenFOAM
   - Gauss-Seidel
