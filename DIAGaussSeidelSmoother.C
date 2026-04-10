@@ -97,7 +97,6 @@ Foam::DIAGaussSeidelSmoother::DIAGaussSeidelSmoother(
     // DEBUG: dump first 5 faces per direction to see actual coefficient values
     if (structuredMesh_)
     {
-        const scalarField& upper = matrix_.upper();
         label countI = 0, countJ = 0, countK = 0;
         // Info<< "DEBUG: sampling upper coefficients by direction" << endl;
         for (label f = 0; f < upperAddr.size() && (countI < 5 || countJ < 5 || countK < 5); f++)
@@ -105,17 +104,14 @@ Foam::DIAGaussSeidelSmoother::DIAGaussSeidelSmoother(
             const label offset = upperAddr[f] - lowerAddr[f];
             if (offset == 1 && countI < 5)
             {
-                // Info<< "  I-face " << f << ": upper=" << upper[f] << endl;
                 countI++;
             }
             else if (offset == Nx_ && countJ < 5)
             {
-                // Info<< "  J-face " << f << ": upper=" << upper[f] << endl;
                 countJ++;
             }
             else if (offset == Nx_ * Ny_ && countK < 5)
             {
-                // Info<< "  K-face " << f << ": upper=" << upper[f] << endl;
                 countK++;
             }
         }
@@ -145,10 +141,7 @@ Foam::DIAGaussSeidelSmoother::DIAGaussSeidelSmoother(
                     const scalar tol = 1e-12 * std::max(std::abs(upperCoeffI_), SMALL);
                     if(std::abs(coeff - upperCoeffI_) > tol)
                     {
-                        // Info<< "  I-direction non-uniform: face " << f
-                        //         << " coeff=" << coeff
-                        //         << " vs canonical=" << upperCoeffI_
-                        //         << " diff=" << (coeff - upperCoeffI_) << endl;
+
                         allUniform = false;
                         break;
                     }
@@ -166,10 +159,7 @@ Foam::DIAGaussSeidelSmoother::DIAGaussSeidelSmoother(
                     const scalar tol = 1e-12 * std::max(std::abs(upperCoeffJ_), SMALL);
                     if(std::abs(coeff - upperCoeffJ_) > tol)
                     {
-                        // Info<< "  J-direction non-uniform: face " << f
-                        //         << " coeff=" << coeff
-                        //         << " vs canonical=" << upperCoeffJ_
-                        //         << " diff=" << (coeff - upperCoeffJ_) << endl;
+
                         allUniform = false;
                         break;
                     }
@@ -187,10 +177,7 @@ Foam::DIAGaussSeidelSmoother::DIAGaussSeidelSmoother(
                     const scalar tol = 1e-12 * std::max(std::abs(upperCoeffK_), SMALL);
                     if(std::abs(coeff - upperCoeffK_) > tol)
                     {
-                        // Info<< "  K-direction non-uniform: face " << f
-                        //         << " coeff=" << coeff
-                        //         << " vs canonical=" << upperCoeffK_
-                        //         << " diff=" << (coeff - upperCoeffK_) << endl;
+
                         allUniform = false;
                         break;
                     }
@@ -268,10 +255,6 @@ Foam::DIAGaussSeidelSmoother::DIAGaussSeidelSmoother(
     {
         Info<< "DIAGaussSeidel: asymmetric matrix, falling back" << endl;
     }
-    // else
-    // {
-    //     Info<< "DIAGaussSeidel: non-uniform coefficients, falling back" << endl;
-    // }
 
     if (useDIA_ && nCells == 125000)  // only log on finest level of your test case
     {
@@ -306,25 +289,15 @@ void Foam::DIAGaussSeidelSmoother::smooth(
 {
     if (useDIA_)
     {
-        // ---- Setup ----
-        // Grab raw pointers for the hot loop
-        // - psiPtr: non-const because we write to psi
-        // - sourcePtr: const
-        // - diagPtr: const (diagonal from matrix_)
-        // - nCells from psi.size() or matrix_.diag().size()
 
         scalar* __restrict__ psiPtr = psi.begin();
-        // const scalar* __restrict__ sourcePtr = source.begin();
         const scalar* __restrict__ diagPtr = matrix_.diag().begin();
         const label nCells = psi.size();
 
-        // Allocate bPrime as a local scalarField of size nCells
-        // Grab bPrimePtr = bPrime.begin()
         scalarField bPrime(nCells);
         scalar* bPrimePtr = bPrime.begin();
 
         // Cache Nx, Ny, Nz into local labels (avoids repeated member access in hot loop)
-        // Cache the six coefficients (upperI/J/K, lowerI/J/K) into local scalars
         label Nx = Nx_;
         label Ny = Ny_;
         label Nz = Nz_;
@@ -337,23 +310,10 @@ void Foam::DIAGaussSeidelSmoother::smooth(
         const scalar* __restrict__ lowerJPtr = upperJPtr;
         const scalar* __restrict__ lowerKPtr = upperKPtr;
 
-        // scalar upperI = upperCoeffI_;
-        // scalar upperJ = upperCoeffJ_;
-        // scalar upperK = upperCoeffK_;
-        // scalar lowerI = lowerCoeffI_;
-        // scalar lowerJ = lowerCoeffJ_;
-        // scalar lowerK = lowerCoeffK_;
 
-        // Compute the two strides we'll use:
-        //   jStride = Nx_       (offset for idx + Nx)
-        //   kStride = Nx_ * Ny_ (offset for idx + Nx*Ny)
         label jStride = Nx;
         label kStride = Nx * Ny;
 
-        // ---- Interface boundary coefficient negation ----
-        // Copy the mBouCoeffs const_cast + forAll + negate() block verbatim
-        // from stock GaussSeidelSmoother.C
-        // --- --- --- ---
         // Parallel boundary initialisation.  The parallel boundary is treated
             // as an effective jacobi interface in the boundary.
             // Note: there is a change of sign in the coupled
@@ -381,11 +341,8 @@ void Foam::DIAGaussSeidelSmoother::smooth(
         // ---- Sweep loop ----
         for (label sweep = 0; sweep < nSweeps; sweep++)
         {
-            // Reset bPrime to source (scalarField assignment)
             bPrime = source;
 
-            // Update interfaces (initMatrixInterfaces + updateMatrixInterfaces)
-            // Copy verbatim from stock GaussSeidelSmoother.C
             matrix_.initMatrixInterfaces(
                         mBouCoeffs,
                         interfaces_,
@@ -404,11 +361,6 @@ void Foam::DIAGaussSeidelSmoother::smooth(
             // The actual DIA sweep
             for (label idx = 0; idx < nCells; idx++)
             {
-                // Extract i, j, k coordinates
-                //   j = idx % Nx_
-                //   i = (idx / Nx_) % Ny_
-                //   k = idx / kStride
-                // (These are unsigned integer divisions - very cheap)
                 label j = idx % Nx;
                 label i = (idx / Nx) % Ny;
                 label k = idx / kStride;
@@ -417,9 +369,6 @@ void Foam::DIAGaussSeidelSmoother::smooth(
 
                 // Upper triangle pull (read forward neighbours)
                 // Only if the forward neighbour exists (not at boundary):
-                //   if (j < Nx_ - 1):  psii -= upperI * psiPtr[idx + 1]
-                //   if (i < Ny_ - 1):  psii -= upperJ * psiPtr[idx + jStride]
-                //   if (k < Nz_ - 1):  psii -= upperK * psiPtr[idx + kStride]
                 if (j < Nx - 1) {
                     psii -= upperIPtr[idx] * psiPtr[idx + 1];
                 }
@@ -435,9 +384,6 @@ void Foam::DIAGaussSeidelSmoother::smooth(
 
                 // Lower triangle push (update forward neighbours' bPrime)
                 // Same conditionals:
-                //   if (j < Nx_ - 1):  bPrimePtr[idx + 1] -= lowerI * psii
-                //   if (i < Ny_ - 1):  bPrimePtr[idx + jStride] -= lowerJ * psii
-                //   if (k < Nz_ - 1):  bPrimePtr[idx + kStride] -= lowerK * psii
                 if (j < Nx - 1) {
                     bPrimePtr[idx + 1] -= lowerIPtr[idx] * psii;
                 }
@@ -448,14 +394,11 @@ void Foam::DIAGaussSeidelSmoother::smooth(
                     bPrimePtr[idx + kStride] -= lowerKPtr[idx] * psii;
                 }
 
-                // Commit
                 psiPtr[idx] = psii;
             }
         }
 
         // ---- Restore interface coefficients ----
-        // Same negate loop again, to undo the earlier negation
-        // Copy verbatim from stock GS
         forAll(mBouCoeffs, patchi)
             {
                 if (interfaces_.set(patchi))
