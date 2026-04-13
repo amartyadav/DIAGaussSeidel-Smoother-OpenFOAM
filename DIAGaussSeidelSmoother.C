@@ -1,3 +1,28 @@
+#ifdef LIKWID_PERFMON
+#include <likwid-marker.h>
+#else
+#define LIKWID_MARKER_INIT
+#define LIKWID_MARKER_THREADINIT
+#define LIKWID_MARKER_START(a)
+#define LIKWID_MARKER_STOP(a)
+#define LIKWID_MARKER_CLOSE
+#endif
+
+#ifdef LIKWID_PERFMON
+__attribute__((constructor))
+static void likwid_init_wrapper()
+{
+    LIKWID_MARKER_INIT;
+    LIKWID_MARKER_THREADINIT;
+}
+
+__attribute__((destructor))
+static void likwid_close_wrapper()
+{
+    LIKWID_MARKER_CLOSE;
+}
+#endif
+
 #include "DIAGaussSeidelSmoother.H"
 #include "Field.H"
 #include "FieldField.H"
@@ -339,6 +364,7 @@ void Foam::DIAGaussSeidelSmoother::smooth(
             }
 
         // ---- Sweep loop ----
+		LIKWID_MARKER_START("DIA_sweep");
         for (label sweep = 0; sweep < nSweeps; sweep++)
         {
             bPrime = source;
@@ -397,6 +423,7 @@ void Foam::DIAGaussSeidelSmoother::smooth(
                 psiPtr[idx] = psii;
             }
         }
+        LIKWID_MARKER_STOP("DIA_sweep");
 
         // ---- Restore interface coefficients ----
         forAll(mBouCoeffs, patchi)
