@@ -51,7 +51,7 @@ This plugin is intentionally scoped. It is **not** a general-purpose smoother.
 
 The plugin includes a structured-mesh detection check at initialisation. If the mesh
 does not satisfy the DIA assumptions, it will either warn and fall back or abort
-cleanly, depending on configuration.
+cleanly, depending on the configuration.
 
 ---
 
@@ -64,7 +64,7 @@ source /opt/openfoam13/etc/bashrc   # or your OF installation path
 wmake libso
 ```
 
-This produces `libDIAGaussSeidel.so` in `$FOAM_USER_LIBBIN`.
+This produces `libDIAGaussSeidelSmoother.so` in `$FOAM_USER_LIBBIN`.
 
 ---
 
@@ -75,7 +75,7 @@ This produces `libDIAGaussSeidel.so` in `$FOAM_USER_LIBBIN`.
 ```cpp
 libs
 (
-    "libDIAGaussSeidel.so"
+    "libDIAGaussSeidelSmoother.so"
 );
 ```
 
@@ -96,7 +96,7 @@ solvers
 ```
 
 The smoother name `DIAGaussSeidel` is registered in OpenFOAM's runtime selection
-table and will be picked up automatically.
+table and will be automatically picked up.
 
 ---
 
