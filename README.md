@@ -1,3 +1,4 @@
+[![DOI](https://zenodo.org/badge/1206676680.svg)](https://doi.org/10.5281/zenodo.19706068)
 # DIAGaussSeidel
 
 A drop-in Gauss-Seidel smoother plugin for **OpenFOAM Foundation v13** that operates
