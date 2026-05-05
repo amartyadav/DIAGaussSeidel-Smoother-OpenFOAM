@@ -35,6 +35,7 @@ static void likwid_close_wrapper()
 #include "GaussSeidelSmoother.H"
 #include "scalar.H"
 #include "scalarField.H"
+#include <chrono>
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 namespace Foam
@@ -364,6 +365,9 @@ void Foam::DIAGaussSeidelSmoother::smooth(
             }
 
         // ---- Sweep loop ----
+        static double totalSweepTime = 0.0;
+        static label totalCalls = 0;
+        auto t0 = std::chrono::high_resolution_clock::now();
 		LIKWID_MARKER_START("DIA_sweep");
         for (label sweep = 0; sweep < nSweeps; sweep++)
         {
@@ -424,6 +428,15 @@ void Foam::DIAGaussSeidelSmoother::smooth(
             }
         }
         LIKWID_MARKER_STOP("DIA_sweep");
+        auto t1 = std::chrono::high_resolution_clock::now();
+        totalSweepTime += std::chrono::duration<double>(t1 - t0).count();
+        totalCalls++;
+
+        if (totalCalls % 1000 == 0)
+        {
+            Info<< "RBDIA_sweep: totalTime=" << totalSweepTime
+                << "s calls=" << totalCalls << endl;
+        }
 
         // ---- Restore interface coefficients ----
         forAll(mBouCoeffs, patchi)
